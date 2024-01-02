@@ -1,15 +1,23 @@
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import kotlin.concurrent.write
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 data class Posting(val docId: String, val positions: MutableList<Int>)
 
-class InvertedIndex {
-    private val index: MutableMap<String, MutableList<Posting>> = mutableMapOf()
-    private val lock = ReentrantReadWriteLock()
+class InvertedIndex(private val shardCount: Int = 20) {
+    private val shards: Array<HashMap<String, MutableList<Posting>>> = Array(shardCount) { hashMapOf() }
+    private val locks: Array<ReentrantLock> = Array(shardCount) { ReentrantLock() }
+
+    private fun getShardIndex(key: String): Int {
+        return (key.hashCode() and Int.MAX_VALUE) % shardCount
+    }
 
     fun addTerm(term: String, docId: String, position: Int) {
-        lock.write {
-            val postings = index.getOrPut(term) { mutableListOf() }
+        val shardIndex = getShardIndex(term)
+        val shard = shards[shardIndex]
+        val lock = locks[shardIndex]
+
+        lock.withLock {
+            val postings = shard.getOrPut(term) { mutableListOf() }
             val posting = postings.find { it.docId == docId }
 
             posting?.positions?.add(position) ?: postings.add(Posting(docId, mutableListOf(position)))
@@ -17,15 +25,22 @@ class InvertedIndex {
     }
 
     fun getPostings(term: String): List<Posting>? {
-        return index[term]
+        val shardIndex = getShardIndex(term)
+        val shard = shards[shardIndex]
+        val lock = locks[shardIndex]
+
+        return lock.withLock {
+            shard[term]?.toList()
+        }
     }
 
-    fun displayIndex() {
-        for ((term, postings) in index) {
-            println("Term: \"$term\"")
-            postings.forEach { posting ->
-                println("   DocID: ${posting.docId}, Positions: ${posting.positions}")
+    fun getSize(): Int {
+        var totalTerms = 0
+        locks.forEachIndexed { index, lock ->
+            lock.withLock {
+                totalTerms += shards[index].size
             }
         }
+        return totalTerms
     }
 }
