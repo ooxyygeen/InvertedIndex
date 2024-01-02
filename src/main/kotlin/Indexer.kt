@@ -34,13 +34,17 @@ class Indexer(private val files: List<File>,
 
     private fun constructIndex(sublist: List<File>) {
         sublist.forEach { file ->
-            val content = file.readText()
-            val words = splitToWords(content)
-
-            words.forEachIndexed { position, word ->
-                val normalizedWord = tokenizeWord(word)
-                if (normalizedWord.isNotEmpty()) {
-                    invertedIndex.addTerm(normalizedWord, file.name, position)
+            file.bufferedReader().use { reader ->
+                var position = 0
+                while (true) {
+                    val line = reader.readLine() ?: break
+                    val words = splitToWords(line)
+                    words.forEach { word ->
+                        val normalizedWord = tokenizeWord(word)
+                        if (normalizedWord.isNotEmpty()) {
+                            invertedIndex.addTerm(normalizedWord, file.name, position++)
+                        }
+                    }
                 }
             }
         }
