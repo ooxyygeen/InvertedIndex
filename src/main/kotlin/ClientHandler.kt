@@ -3,11 +3,10 @@ import java.io.DataOutputStream
 import java.net.Socket
 import java.util.concurrent.atomic.AtomicBoolean
 
-class ClientHandler(private val socket: Socket, private val index: InvertedIndex) : Runnable {
+class ClientHandler(private val socket: Socket, private val index: InvertedIndex, private val isConstructed: AtomicBoolean) : Runnable {
     private val dis: DataInputStream = DataInputStream(socket.getInputStream())
     private val dos: DataOutputStream = DataOutputStream(socket.getOutputStream())
 
-    private val isConstructed = AtomicBoolean(false)
     private var isTerminated = false
 
     override fun run() {
@@ -24,11 +23,13 @@ class ClientHandler(private val socket: Socket, private val index: InvertedIndex
                 dos.writeUTF("Waiting for command...")
 
                 received = dis.readUTF()
+                println("Received message(port=${socket.port}): $received")
                 when (received.uppercase()) {
                     "SEARCH" -> {
                         dos.writeUTF(if (!isConstructed.get()) "The system isn't ready. Try again later."
                                      else "Enter search query.")
                         val query = dis.readUTF()
+                        println("Received query(port=${socket.port}): $query")
                         val words = splitToWords(query).map { tokenizeWord(it) }.filter { it.isNotEmpty() }
                         val result = index.searchDocuments(words)
                         dos.writeUTF(if (result.isEmpty()) "No documents contain this phrase" else "Your data is in: $result")
