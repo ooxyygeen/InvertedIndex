@@ -3,7 +3,7 @@ import java.io.DataOutputStream
 import java.net.Socket
 import java.util.concurrent.atomic.AtomicBoolean
 
-class ClientHandler(private val socket: Socket) : Runnable {
+class ClientHandler(private val socket: Socket, private val index: InvertedIndex) : Runnable {
     private val dis: DataInputStream = DataInputStream(socket.getInputStream())
     private val dos: DataOutputStream = DataOutputStream(socket.getOutputStream())
 
@@ -27,8 +27,11 @@ class ClientHandler(private val socket: Socket) : Runnable {
                 when (received.uppercase()) {
                     "SEARCH" -> {
                         dos.writeUTF(if (!isConstructed.get()) "The system isn't ready. Try again later."
-                                     else "Enter words to search.")
-                        // code to retrieve data from index
+                                     else "Enter search query.")
+                        val query = dis.readUTF()
+                        val words = splitToWords(query).map { tokenizeWord(it) }.filter { it.isNotEmpty() }
+                        val result = index.searchDocuments(words)
+                        dos.writeUTF(if (result.isEmpty()) "No documents contain this phrase" else "Your data is in: $result")
                     }
                     "EXIT" -> {
                         isTerminated = true
