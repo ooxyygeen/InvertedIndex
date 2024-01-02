@@ -24,14 +24,42 @@ class InvertedIndex(private val shardCount: Int = 20) {
         }
     }
 
-    fun getPostings(term: String): List<Posting>? {
+    fun searchDocuments(words: List<String>): Set<String> {
+        if (words.isEmpty()) return emptySet()
+
+        val initialPostings = getPostings(words.first()) ?: return emptySet()
+
+        // Map to track the last valid positions for each document
+        var validPostings = initialPostings.associate { it.docId to it.positions.toMutableSet() }
+
+        for (word in words.drop(1)) {
+            val postings = getPostings(word) ?: return emptySet()
+
+            val newValidPostings = mutableMapOf<String, MutableSet<Int>>()
+
+            // Update the map for the next valid positions
+            validPostings.forEach { (docId, positions) ->
+                val newPositions = postings.find { it.docId == docId }?.positions
+                newPositions?.let {
+                    val validPositions = positions.map { it + 1 }.intersect(newPositions.toSet())
+                    if (validPositions.isNotEmpty()) {
+                        newValidPostings[docId] = validPositions.toMutableSet()
+                    }
+                }
+            }
+
+            // Update the validPostings for the next iteration
+            validPostings = newValidPostings.ifEmpty { return emptySet() }
+        }
+
+        return validPostings.keys
+    }
+
+    private fun getPostings(term: String): List<Posting>? {
         val shardIndex = getShardIndex(term)
         val shard = shards[shardIndex]
-        val lock = locks[shardIndex]
 
-        return lock.withLock {
-            shard[term]?.toList()
-        }
+        return shard[term]?.toList()
     }
 
     fun getSize(): Int {
