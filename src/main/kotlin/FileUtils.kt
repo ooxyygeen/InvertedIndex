@@ -4,7 +4,7 @@ import java.util.*
 fun getAllTextFiles(directoryPath: String): List<File> {
     val directory = File(directoryPath)
     return if (directory.exists() && directory.isDirectory) {
-        directory.walk().filter { it.isFile && it.extension == "txt" }.toList()
+        directory.walk().filter { it.isFile && it.extension == "txt" }.toList().shuffled()
     } else {
         emptyList()
     }
