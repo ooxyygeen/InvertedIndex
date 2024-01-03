@@ -15,7 +15,7 @@ fun main(args: Array<String>) {
     }
     val serverSocket = ServerSocket(8080)
     val index = InvertedIndex()
-    val files = getAllTextFiles("src/main/resources/dataset")
+    val files = getAllTextFiles("dataset")
     val isCompleted = AtomicBoolean(false)
 
     thread(start = true) { Indexer(files, threadNum, isCompleted, index).run() }
