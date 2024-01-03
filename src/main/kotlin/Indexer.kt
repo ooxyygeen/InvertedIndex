@@ -29,7 +29,7 @@ class Indexer(private val files: List<File>,
         val endTime = System.nanoTime()
         val timeTaken = endTime - startTime
         println("Time taken for index construction: ${timeTaken / 1_000_000.0} ms")
-
+        println("Index size is: ${invertedIndex.getSize()}")
     }
 
     private fun constructIndex(sublist: List<File>) {
